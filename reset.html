@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>교사용 관리실 비밀번호 설정 | 디지털 시민 탐험대</title>
+<style>*{box-sizing:border-box}body{background:#f6f7fe;color:#272d52;font-family:"Malgun Gothic",system-ui,sans-serif;margin:0;line-height:1.6}main{max-width:570px;margin:9vh auto;padding:20px}section{background:white;padding:30px;border-radius:18px;border:1px solid #e5e8f2;box-shadow:0 20px 45px #33336610}h1{font-size:23px;margin-top:0}p{font-size:14px;color:#657091}label{display:block;font-size:14px;font-weight:700;margin:15px 0 5px}input{width:100%;border:1px solid #cfd3e9;border-radius:10px;padding:12px;font:inherit}button{margin-top:18px;border:0;border-radius:10px;padding:13px 16px;background:#5554bd;color:white;font:inherit;font-weight:800;cursor:pointer}button:disabled{opacity:.5}a{color:#5554bd}#status{color:#5259a5;font-size:14px;min-height:20px;white-space:pre-wrap}.hide{display:none}.notice{background:#f5f5ff;border-radius:10px;padding:12px}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script></head>
+<body><main><section>
+<h1>🔐 관리실 비밀번호 설정</h1>
+<p>Supabase 홈페이지에 구글로 로그인한 것과 교사용 관리실 로그인은 서로 다릅니다. 교사용 비밀번호를 새로 지정할 수 있습니다.</p>
+<div id="request"><p class="notice">아래에 교사용 계정 이메일을 입력하면 비밀번호 재설정 메일을 보냅니다. 이메일을 받은 뒤 링크를 눌러 비밀번호를 지정해 주세요.</p>
+<form id="requestForm"><label for="email">등록된 교사 이메일</label><input id="email" type="email" required autocomplete="email" value="jeongcheoncho@gmail.com"><button type="submit" id="send">비밀번호 설정 메일 보내기</button></form>
+</div>
+<div id="change" class="hide"><p class="notice">메일의 인증 링크를 확인했습니다. 새 비밀번호를 등록하세요.</p>
+<form id="changeForm"><label for="newPassword">새 비밀번호 (8자 이상)</label><input type="password" id="newPassword" minlength="8" required autocomplete="new-password"><label for="newPasswordConfirm">새 비밀번호 다시 입력</label><input type="password" id="newPasswordConfirm" minlength="8" required autocomplete="new-password"><button type="submit" id="changeBtn">새 비밀번호 저장</button></form></div>
+<p id="status" role="status" aria-live="polite"></p><p><a href="./admin.html">교사용 관리실로 돌아가기</a></p>
+</section></main>
+<script>
+(() => {
+"use strict";
+const db = window.supabase.createClient("https://vhmvutvphsqrhocglxtf.supabase.co","sb_publishable_l2skDy_zxR43tW-l1NILKA_N9VnT88q",{auth:{persistSession:true,detectSessionInUrl:true,flowType:"implicit",storageKey:"dc_teacher_session"}});
+const $ = s => document.querySelector(s);
+let recovery = /(?:[?#&])type=recovery(?:&|$)/.test(window.location.href);
+let hasSession = false;
+const showChange = () => {$("#request").classList.add("hide");$("#change").classList.remove("hide");};
+db.auth.onAuthStateChange((event,session)=>{
+  if(event==="PASSWORD_RECOVERY"){recovery=true;hasSession=!!session;showChange();}
+  if(event==="SIGNED_IN" && recovery){hasSession=!!session;showChange();}
+});
+db.auth.getSession().then(({data,error})=>{
+ if(error){$("#status").textContent="인증 링크를 확인하지 못했습니다. 다시 요청해 주세요.";return;}
+ hasSession=!!data.session;
+ if(recovery && hasSession)showChange();
+});
+$("#requestForm").addEventListener("submit",async e=>{
+ e.preventDefault();$("#send").disabled=true;$("#status").textContent="메일을 보내는 중입니다.";
+ const email=$("#email").value.trim();
+ const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+"/reset.html"});
+ $("#send").disabled=false;
+ $("#status").textContent=error?("요청 실패: "+error.message):"요청을 접수했습니다. 등록된 이메일의 받은편지함과 스팸함을 확인하고, 메일의 비밀번호 재설정 링크를 여세요. 메일이 오지 않으면 잠시 후 다시 시도하세요.";
+});
+$("#changeForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const pass=$("#newPassword").value;const again=$("#newPasswordConfirm").value;
+ if(pass.length<8){$("#status").textContent="8자 이상으로 입력해 주세요.";return;}
+ if(pass!==again){$("#status").textContent="두 비밀번호가 다릅니다.";return;}
+ const {data}=await db.auth.getSession();
+ if(!recovery || !data.session){$("#status").textContent="비밀번호 재설정 인증이 필요합니다. 이메일의 링크를 다시 열어 주세요.";return;}
+ $("#changeBtn").disabled=true;$("#status").textContent="새 비밀번호를 저장 중입니다.";
+ const {error}=await db.auth.updateUser({password:pass});
+ $("#changeBtn").disabled=false;
+ if(error){$("#status").textContent="저장 실패: "+error.message;return;}
+ $("#status").textContent="비밀번호가 설정되었습니다. 관리실에서 새 비밀번호로 로그인해 주세요.";
+ await db.auth.signOut();
+ $("#changeForm").querySelectorAll("input,button").forEach(el=>el.disabled=true);
+ window.location.hash="";
+});
+})();
+</script></body></html>
