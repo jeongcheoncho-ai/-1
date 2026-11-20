@@ -6,7 +6,7 @@
 <h1>🔐 관리실 비밀번호 설정</h1>
 <p>Supabase 홈페이지에 구글로 로그인한 것과 교사용 관리실 로그인은 서로 다릅니다. 교사용 비밀번호를 새로 지정할 수 있습니다.</p>
 <div id="request"><p class="notice">아래에 교사용 계정 이메일을 입력하면 비밀번호 재설정 메일을 보냅니다. 이메일을 받은 뒤 링크를 눌러 비밀번호를 지정해 주세요.</p>
-<form id="requestForm"><label for="email">등록된 교사 이메일</label><input id="email" type="email" required autocomplete="email" value="jeongcheoncho@gmail.com"><button type="submit" id="send">비밀번호 설정 메일 보내기</button></form>
+<form id="requestForm"><label for="email">등록된 교사 이메일</label><input id="email" type="email" required autocomplete="email"><button type="submit" id="send">비밀번호 설정 메일 보내기</button></form>
 </div>
 <div id="change" class="hide"><p class="notice">메일의 인증 링크를 확인했습니다. 새 비밀번호를 등록하세요.</p>
 <form id="changeForm"><label for="newPassword">새 비밀번호 (8자 이상)</label><input type="password" id="newPassword" minlength="8" required autocomplete="new-password"><label for="newPasswordConfirm">새 비밀번호 다시 입력</label><input type="password" id="newPasswordConfirm" minlength="8" required autocomplete="new-password"><button type="submit" id="changeBtn">새 비밀번호 저장</button></form></div>
