@@ -22,8 +22,9 @@
 <script>
 /* Supabase 프로젝트 생성 후 아래 두 값을 교체하세요. service_role 키는 절대 넣지 마세요. */
 window.APP_CONFIG = {
-  SUPABASE_URL: '',
-  SUPABASE_ANON_KEY: '',
+  SUPABASE_URL: 'https://vhmvutvphsqrhocglxtf.supabase.co',
+  COLLECT_ENABLED: false,
+  SUPABASE_ANON_KEY: 'sb_publishable_l2skDy_zxR43tW-l1NILKA_N9VnT88q',
   SCHOOL_NAME: '우리 학교',
   CAMPAIGN_TITLE: '디지털 시민 탐험대',
   PRIVACY_CONTACT: '학교 담당 선생님',
@@ -57,20 +58,21 @@ window.quizIsCorrect = (q, value) => {
 };
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
 <script>
 (() => {
   'use strict';
   const app = document.getElementById('app');
   const cfg = window.APP_CONFIG || {};
   const questions = window.QUIZ || [];
-  const online = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
+  const online = Boolean(cfg.COLLECT_ENABLED && cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
   const db = online ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}) : null;
   const state = {page:'intro', index:0, identity:null, answers:{}, sending:false, error:'', score:0};
   document.getElementById('schoolName').textContent = cfg.SCHOOL_NAME || '우리 학교';
   document.title = `${cfg.CAMPAIGN_TITLE || '디지털 시민 탐험대'} | 5분 퀴즈`;
   const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const info = () => `<div class="notice">🔒 수집 정보: 학년·반·번호·이름, 답안, 제출 시각 · 이용 목적: 교육활동 참여 확인 및 결과 집계 · 열람: 승인된 담당 교사 · 보관: ${esc(cfg.PRIVACY_RETENTION || '학교 안내에 따름')} · 문의: ${esc(cfg.PRIVACY_CONTACT || '학교 담당 선생님')}. <strong>학교의 개인정보 안내를 받은 경우에만 참여하세요.</strong></div>`;
-  const demo = () => !online ? `<div class="notice warning"><strong>⚠ 미리보기 모드:</strong> 서버가 연결되지 않았습니다. 연습용 가상 이름을 사용하세요. 퀴즈는 실행되지만 답안은 어디에도 저장되지 않습니다.</div>` : '';
+  const demo = () => !online ? `<div class="notice warning"><strong>⚠ 시범 운영 중:</strong> 서버가 연결되지 않았습니다. 연습용 가상 이름을 사용하세요. 퀴즈는 실행되지만 답안은 어디에도 저장되지 않습니다.</div>` : '';
   const frame = (content, caption='5분이면 충분해요!') => `<section class="hero"><span class="eyebrow">🌈 THE DIGITAL CITIZEN QUEST</span><h1>디지털 세상을 지키는<br><em>멋진 시민이 되자!</em></h1><p>${caption}</p><div class="overview-pills"><span>⭕❌ OX 5문제</span><span>✍️ 단답형 5문제</span><span>🎮 미니게임 1개</span></div></section>${content}`;
   function intro(){return frame(`<section class="card intro-card"><div class="intro-top-art" aria-hidden="true">🧑‍🚀🌏✨</div><h2 class="card-title">탐험가 등록하기</h2><p class="card-subtitle">학교에서 안내받은 학생만 참여해 주세요. 입력 후 11개의 미션이 시작돼요.</p>${demo()}<form id="studentEntry"><div class="fields"><div class="field"><label for="grade">학년</label><select id="grade" name="grade" class="select-input" required>${[3,4,5,6].map(n=>`<option value="${n}">${n}학년</option>`).join('')}</select></div><div class="field"><label for="classNo">반</label><input id="classNo" name="classNo" class="text-input" inputmode="numeric" type="number" min="1" max="20" placeholder="예: 2" required></div><div class="field"><label for="studentNo">번호</label><input id="studentNo" name="studentNo" class="text-input" inputmode="numeric" type="number" min="1" max="60" placeholder="예: 12" required></div><div class="field full"><label for="studentName">체험용 별명 (실명 금지)</label><input id="studentName" name="studentName" class="text-input" maxlength="12" placeholder="예: 별빛탐험가" autocomplete="off" required></div></div>${info()}<button class="button primary full" type="submit">✨ 탐험 시작하기 →</button></form></section>`, 'OX 퀴즈부터 미니게임까지, 11개의 작은 도전!')}
   function progress(index){return `<div class="quiz-progress-head"><span class="progress-name">🧭 ${esc(state.identity?.grade)}학년 ${esc(state.identity?.class_no)}반 · ${esc(state.identity?.student_name)} 탐험가</span><span class="progress-count">${index} / ${questions.length} 미션</span></div><div class="progress-track" role="progressbar" aria-valuenow="${index}" aria-valuemin="0" aria-valuemax="${questions.length}" aria-label="진행률"><div class="progress-fill" style="width:${(index/questions.length)*100}%"></div></div>`;}
