@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>디지털 시민 탐험대 | 교사용 관리실</title>
+<style>
+:root{font-family:"Malgun Gothic",system-ui,sans-serif;color:#252a49;background:#f6f7fc}*{box-sizing:border-box}body{margin:0}main{max-width:1160px;margin:40px auto;padding:0 18px}h1{font-size:26px}p{color:#606683;line-height:1.65}.panel{background:white;border:1px solid #e3e6f1;border-radius:18px;padding:25px;margin-bottom:18px;box-shadow:0 6px 18px #1c20570d}.muted{font-size:12px;color:#68708b}input,button,select{font:inherit;border-radius:10px;padding:12px;border:1px solid #d5d9ea}input{display:block;width:100%;margin:9px 0 16px}button{background:#5654bd;color:white;border:0;cursor:pointer;font-weight:700}button:hover{background:#41419f}button:disabled{opacity:.4}.buttons{display:flex;flex-wrap:wrap;gap:10px}#login{max-width:480px;margin:10vh auto}#msg{color:#a63b32;font-size:14px}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid #eceef5;text-align:left;padding:11px 8px;white-space:nowrap}th{background:#f8f9fe}.scroll{overflow-x:auto}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.metric{background:#f2f2ff;border-radius:12px;padding:16px}.metric strong{font-size:25px;display:block;color:#4e4aba}label{font-size:14px;color:#525878;font-weight:700}a{color:#5553ad}.warning{padding:12px;border-radius:10px;background:#fff5e7;color:#765128;font-size:13px}@media(max-width:620px){.metrics{grid-template-columns:1fr}.panel{padding:18px}} 
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+</head><body><main><header><h1>🔐 디지털 시민 탐험대 · 교사용 관리실</h1><p>담당 교사만 학생 응답을 조회할 수 있습니다. <a href="./">학생 체험 페이지</a></p></header>
+<div class="panel" id="login"><h2>교사 계정 로그인</h2><p>Supabase Auth에 생성되고 teacher_accounts에 등록된 계정으로 로그인하세요.</p><form id="loginForm"><label for="email">교사 이메일</label><input id="email" type="email" required autocomplete="username"><label for="password">비밀번호</label><input id="password" type="password" required autocomplete="current-password"><button type="submit">로그인</button></form><p id="msg" role="alert"></p></div>
+<div id="board" hidden><div class="panel"><div class="buttons" style="justify-content:space-between"><h2 style="margin:0">학생 제출 결과</h2><div class="buttons"><button id="refresh">새로고침</button><button id="export">CSV 다운로드</button><button id="logout">로그아웃</button></div></div><p class="warning">학교 개인정보 처리 기준에 따라 파일을 보관하고, 캠페인 종료 후 불필요한 데이터는 삭제하세요.</p><div class="metrics"><div class="metric">전체 참여<strong id="count">0명</strong></div><div class="metric">평균 점수<strong id="average">0/11</strong></div><div class="metric">평균 정답률<strong id="rate">0%</strong></div></div></div><div class="panel"><label>학년별 결과 <select id="grade"><option value="">전체 학년</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label><div class="scroll" style="margin-top:15px"><table><thead><tr><th>학년</th><th>반</th><th>번호</th><th>이름</th><th>점수</th><th>정답률</th><th>제출시각</th></tr></thead><tbody id="rows"></tbody></table></div><p class="muted">CSV 파일에는 각 문제의 제출 답안이 함께 기록됩니다.</p><p id="status"></p></div></div></main>
+<script>
+(function(){
+"use strict";
+const db=window.supabase.createClient("https://vhmvutvphsqrhocglxtf.supabase.co","sb_publishable_l2skDy_zxR43tW-l1NILKA_N9VnT88q",{auth:{persistSession:true,storageKey:"dc_teacher_session"}});
+const $=s=>document.querySelector(s);let records=[];
+const pct=n=>(100*Number(n||0)/11).toFixed(1)+"%";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=s=>new Date(s).toLocaleString("ko-KR");
+function filtered(){let grade=$("#grade").value;return records.filter(r=>!grade||String(r.grade)===grade);}
+async function load(){
+$("#status").textContent="자료를 불러오는 중입니다.";
+const data=await db.from("submissions").select("grade,class_no,student_no,student_name,score,created_at,answers").order("created_at",{ascending:false}).limit(5000);
+if(data.error){$("#status").textContent="불러오기 실패: 접근 권한 또는 네트워크를 확인하세요.";return;}
+records=data.data||[];render();
+}
+function render(){
+const xs=filtered();$("#count").textContent=xs.length+"명";
+const mean=xs.length?xs.reduce((n,r)=>n+Number(r.score||0),0)/xs.length:0;
+$("#average").textContent=mean.toFixed(1)+"/11";$("#rate").textContent=(100*mean/11).toFixed(1)+"%";
+$("#rows").innerHTML=xs.map(r=>"<tr>"+[r.grade,r.class_no,r.student_no,r.student_name,Number(r.score||0)+"/11",pct(r.score),fmt(r.created_at)].map(x=>"<td>"+esc(x)+"</td>").join("")+"</tr>").join("") || '<tr><td colspan="7">제출된 결과가 없습니다.</td></tr>';
+$("#status").textContent="조회된 제출: "+xs.length+"건";
+}
+async function show(){
+let s=await db.auth.getSession();if(!s.data.session){$("#board").hidden=true;$("#login").hidden=false;return;}
+let t=await db.rpc("is_teacher");if(t.error||t.data!==true){await db.auth.signOut();$("#msg").textContent="교사 권한이 등록되지 않은 계정입니다.";$("#board").hidden=true;$("#login").hidden=false;return;}
+$("#login").hidden=true;$("#board").hidden=false;await load();
+}
+$("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#msg").textContent="로그인 확인 중…";let r=await db.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#password").value});if(r.error){$("#msg").textContent="로그인 실패: 계정을 확인해 주세요.";return;}$("#msg").textContent="";await show();});
+$("#refresh").onclick=load;$("#grade").onchange=render;
+$("#logout").onclick=async()=>{await db.auth.signOut();records=[];$("#board").hidden=true;$("#login").hidden=false;};
+function cell(v){let x=String(v??"");if(/^\s*[=+@-]/.test(x))x="'"+x;return '"'+x.replace(/"/g,'""')+'"';}
+$("#export").onclick=()=>{
+const cols=["학년","반","번호","이름","점수","정답률","제출시각",...Array.from({length:11},(_,i)=>(i+1)+"번 응답")];
+const ids=["ox1","ox2","ox3","ox4","ox5","short1","short2","short3","short4","short5","game1"];
+const data=[cols,...filtered().map(r=>[r.grade,r.class_no,r.student_no,r.student_name,r.score,pct(r.score),fmt(r.created_at),...ids.map(id=>r.answers?.[id]||"")])];
+const blob=new Blob(["\ufeff"+data.map(row=>row.map(cell).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="디지털시민_제출결과.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+};
+show();
+})();
+</script></body></html>
